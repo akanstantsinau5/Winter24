@@ -1,0 +1,436 @@
+---
+title: "Empirical Methods HW1"
+author: "Cohort1 Group 7"
+format: pdf
+---
+
+### Question 1
+
+A useful source of data for stock returns on the market and various trading stratgies is: https://mba.tuck.dartmouth.edu/pages/faculty/ken.french/data_library.html. Please go there, scroll down a little and on the link "CSV" that comes after the text "Fama/French 3 factors." You will get a zip-Öle that, if you click on it, will open the data in Excel (at least if you have a Windows computer). This Öle gives you monthly excess returns on the market (MKTRF), a value strategy (HML), and a size strategy (SMB), as well as the risk-free asset return (RF). We will for now only consider the data for MKTRF. The data is in percent, so 2.96 means that the return to the market portfolio in that month was 2.96% in excess of the return to the risk-free asset.
+
+#### 1) Using the data from Jan 2013 to August 2023, give the mean, standard deviation, skewness, and excess kurtosis of excess market returns.
+
+```{r}
+# Load the data
+df <- read.csv('F-F_Research_Data_Factors.CSV', header = TRUE, skip = 3)
+# Values were imported as characters. Convert values to numeric
+df$Mkt.RF <- suppressWarnings(as.numeric(df$Mkt.RF))
+df$SMB <- suppressWarnings(as.numeric(df$SMB))
+df$HML <- suppressWarnings(as.numeric(df$HML))
+df$RF <- suppressWarnings(as.numeric(df$RF))
+
+head(df)
+```
+
+```{r}
+# Install and Load fBasics library.
+# Recommended in the first chapter of class textbook: "Analysis of Financial Time Series"
+#install.packages('fBasics')
+library(fBasics)
+# Sort the values
+ten_yr <- subset(df[, 1:2], df$X >= 201301 & df$X <= 202308)
+# Calculate mean, deviation, skewness, and kurtosis
+mu <- mean(ten_yr$Mkt.RF)
+std <- sqrt(var(ten_yr$Mkt.RF))
+sk <- skewness(ten_yr$Mkt.RF)
+k <- kurtosis(ten_yr$Mkt.RF)
+print(paste('Mean:', round(mu, 4)))
+print(paste('Standard Deviation:', round(std, 4)))
+print(paste('Skewness:', round(sk, 4)))
+print(paste('Excess Kurtosis:', round(k, 4)))
+```
+
+#### 2) Given the numbers in 1., what is the market Sharpe ratio over this period? Is the Sharpe ratio a sufficient statistic for the risk-return trade-off in your view over this sample? Explain why or why not.
+
+Given that we are working with excess returns, we can skip a step where we calculate excess return and deviation.
+
+This obtained Sharpe Ratio is obtained with monthly data and so can be at first misleading (since annualizing the data would effectively multiply the ratio by $\sqrt{12}$). This is a good metric of the relative value of a standalone investment in the market portfolio over this inteval but other metrics are necessary to determine optimal portfolio combinations and behavior vis-a-vis one's risk appetite.
+
+```{r}
+# Set sharpe as returns over deviation
+sr <- mu/std
+print(paste('Sharpe:', round(sr, 4)))
+```
+
+#### 3) The data is monthly so the statistics you reported are at the monthly frequency. Give the annualized numbers for the mean, standard deviation, and Sharpe ratio. Here, use the relation on Slide 9 of Lecture 1 for how to annualize (this is strictly speaking for log returns, but we often use this as an approximation to actual returns).
+
+```{r}
+# Calculate annualized mean
+mu_an <- mu*12
+# Calculate annualized deviation
+std_an <- std * sqrt(12)
+# Calculate annualized sharpe
+sr_an <- mu_an/std_an
+print(paste('Annualized mean:', round(mu_an, 4)))
+print(paste('Annualized standard deviation:', round(std_an, 4)))
+print(paste('Annualized Sharpe:', round(sr_an, 4)))
+```
+
+#### 4) Using the same MKTRF data, plot a histogram of the returns. Give the empirical probability, i.e. using the data histogram, that the monthly excess market return is less than 3 standard deviations lower than the mean.
+
+```{r}
+hist(ten_yr$Mkt.RF, breaks = 50, col = 'gray', main = "Histogram of Mkt-RF Column",
+     xlab = "Mkt-RF Value", ylab = "Frequency", xlim = c(-15,15))
+```
+
+```{r}
+total <- 0
+proba <- 0
+threshold <- mu - 3 * std
+
+# Traverse the rows of the data box
+for (i in 1:nrow(ten_yr)) {
+  total <- total + 1
+  if (ten_yr$Mkt.RF[i] <= threshold) {
+    proba <- proba + 1
+  }
+}
+
+proba <- proba / total
+cat("The probability:", proba)
+```
+
+#### 5) Next, for the same data period, download the daily data for the "Fama/French 3 factors" (two lines below on the webpage). Redo 1.-4. above with this data.
+
+```{r}
+# Load the data
+df2 <- read.csv('F-F_Research_Data_Factors_daily.CSV', header = TRUE, skip = 4)
+# Values were imported as characters. Convert values to numeric
+df2$Mkt.RF <- suppressWarnings(as.numeric(df2$Mkt.RF))
+df2$SMB <- suppressWarnings(as.numeric(df2$SMB))
+df2$HML <- suppressWarnings(as.numeric(df2$HML))
+df2$RF <- suppressWarnings(as.numeric(df2$RF))
+
+# Follow the steps in 1-4
+# Sort the values
+ten_yr_daily <- subset(df2[, 1:2], df2$X >= 20130101 & df2$X <= 20230731)
+# Calculate mean, deviation, skewness, and kurtosis
+mu_d <- mean(ten_yr_daily$Mkt.RF)
+std_d <- sqrt(var(ten_yr_daily$Mkt.RF))
+sk_d <- skewness(ten_yr_daily$Mkt.RF)
+k_d <- kurtosis(ten_yr_daily$Mkt.RF)
+sr_d <- mu_d/std_d
+
+print(paste('Daily Mean :', round(mu_d, 4)))
+print(paste('Daily Standard Deviation: ', round(std_d, 4)))
+print(paste('Skewness:', round(sk_d, 4)))
+print(paste('Excess Kurtosis:', round(k_d, 4)))
+print(paste('Sharpe:', round(sr_d, 4)))
+```
+
+```{r}
+# Calculate Annualized mean based on 360 days
+mu_d_an <- mu_d*360
+# Calculate annualized deviation
+std_d_an <- std_d * sqrt(360)
+# Calculate annualized sharpe
+sr_d_an <- mu_d_an/std_d_an
+print(paste('Annualized mean:', round(mu_d_an, 4)))
+print(paste('Annualized standard deviation:', round(std_d_an, 4)))
+print(paste('Annualized Sharpe:', round(sr_d_an, 4)))
+
+```
+
+```{r}
+hist(ten_yr_daily$Mkt.RF, breaks = 50, col = 'gray', main = "Histogram of Mkt-RF Column",
+     xlab = "Mkt-RF Value", ylab = "Frequency", xlim = c(-6,6))
+```
+
+```{r}
+total <- 0
+proba <- 0
+threshold <- mu_d - 3 * std_d
+
+# Traverse the rows of the data box
+for (i in 1:nrow(ten_yr_daily)) {
+  total <- total + 1
+  if (ten_yr_daily$Mkt.RF[i] <= threshold) {
+    proba <- proba + 1
+  }
+}
+
+proba <- proba / total
+cat("The probability:", proba)
+```
+
+\newpage
+
+## Question 2
+
+Let's say you are a pension fund that is investing equally in the risk-free asset with return RF and the market (with return MKTRF + RF). You rebalance your position monthly.
+
+#### 1) Give the annualized Sharpe ratio for this position.
+
+```{r}
+ten_yr_q2 <- subset(df, df$X >= 201301 & df$X <= 202308)
+# Calculate monthly return using MKTRF + RF
+ten_yr_q2$PenFund <- 0.5*(ten_yr_q2$Mkt.RF + ten_yr_q2$RF) + 0.5*ten_yr_q2$RF
+# Get annualized sharpe based on new column
+pf_mu = mean(ten_yr_q2$PenFund)*12
+pf_std = sqrt(var(ten_yr_q2$PenFund))*sqrt(12)
+pf_sr = pf_mu/pf_std
+print(paste('Pension Fund annualized sharpe', round(pf_sr, 4)))
+```
+
+#### 2) Plot the drawdown and maximal drawdown as on slide 56. Not sure how to do this.
+
+```{r}
+# Calculate fund_value
+fund_value <- cumprod(1 + 0.01 * ten_yr_q2$PenFund)
+# Reset index and drop old index
+fund_value <- data.frame(Date = ten_yr_q2$X, Fund_Value = fund_value)
+
+# Initialize variables
+peak <- fund_value$Fund_Value[1]
+drawdown <- c(0)
+max_drawdown <- c(0)
+
+# Calculate drawdown and max drawdown
+for (i in 1:nrow(fund_value)) {
+  if (fund_value$Fund_Value[i] > peak) {
+    peak <- fund_value$Fund_Value[i]
+  }
+  drawdown <- c(drawdown, peak - fund_value$Fund_Value[i])
+  max_drawdown <- c(max_drawdown, max(max_drawdown[length(max_drawdown)], 
+                                      drawdown[length(drawdown)]))
+}
+
+# Remove the first element (initialization)
+drawdown <- drawdown[-1]
+max_drawdown <- max_drawdown[-1]
+
+# Plot Drawdown and MaxDrawdown
+plot(drawdown, type = 'l', col = 'red', xlab = 'Date', ylab = 'Drawdown',lwd = 2,
+     main = 'Drawdown and MaxDrawdown')
+lines(max_drawdown, col = 'blue',lwd = 2)
+legend('topleft', legend = c('Drawdown', 'MaxDrawdown'), col = c('red', 'blue'),lty=1:1)
+```
+
+#### 3) Redo 1. and 2., but now assume that you invest 300% in the market and -200% in the risk-free asset (i.e., if you started with \$10M, you borrow an additional 20M and invest 30M in the market; you redo the borrowing each month to satisfy these weights each month).
+
+```{r}
+ten_yr_q2$PenFund2 <- 3*(ten_yr_q2$Mkt.RF + ten_yr_q2$RF) -2*ten_yr_q2$RF
+# Get annualized sharpe based on new column
+pf_mu2 = mean(ten_yr_q2$PenFund2)*12
+pf_std2 = sqrt(var(ten_yr_q2$PenFund2))*sqrt(12)
+pf_sr2 = pf_mu2/pf_std2
+print(paste('Pension Fund annualized sharpe', round(pf_sr2, 4)))
+```
+
+```{r}
+# Calculate fund_value
+fund_value2 <- cumprod(1 + 0.01 * ten_yr_q2$PenFund2)
+# Reset index and drop old index
+fund_value2 <- data.frame(Date = ten_yr_q2$X, Fund_Value = fund_value2)
+
+# Initialize variables
+peak <- fund_value2$Fund_Value[1]
+drawdown <- c(0)
+max_drawdown <- c(0)
+
+# Calculate drawdown and max drawdown
+for (i in 1:nrow(fund_value2)) {
+  if (fund_value2$Fund_Value[i] > peak) {
+    peak <- fund_value2$Fund_Value[i]
+  }
+  drawdown <- c(drawdown, peak - fund_value2$Fund_Value[i])
+  max_drawdown <- c(max_drawdown, max(max_drawdown[length(max_drawdown)], 
+                                      drawdown[length(drawdown)]))
+}
+
+# Remove the first element (initialization)
+drawdown <- drawdown[-1]
+max_drawdown <- max_drawdown[-1]
+
+# Plot Drawdown and MaxDrawdown
+plot(drawdown, type = 'l', col = 'red', xlab = 'Date', ylab = 'Drawdown',lwd = 2,
+     main = 'Drawdown and MaxDrawdown')
+lines(max_drawdown, col = 'blue',lwd = 2)
+legend('topleft', legend = c('Drawdown', 'MaxDrawdown'), col = c('red', 'blue'),lty=1:1)
+```
+
+\newpage
+
+## Question 3
+
+### 1.Simulate T time series observations each of of the following two return series N times
+
+```{r}
+# Set the parameters
+mu <- 0.006
+sd <- 0.05
+T <- 600
+N <- 10000
+
+# Function to simulate time series
+simulate <- function(mu,sd,T) {
+  error1 <- rnorm(T)
+  error2 <- rnorm(T)
+  r1 <- mu + sd * error1
+  r2 <- mu + sd * error2
+  data.frame(r1 = r1, r2 = r2)
+}
+
+# Function to perform regression
+regression <- function(series) {
+  model <- lm(r1 ~ r2, data = series)
+  return(c(coef(model)[2], summary(model)$coefficients[2, 3]))
+}
+
+# Simulate N time series and perform regressions
+results <- replicate(N, regression(simulate(mu,sd,T)))
+
+# Extract slope coefficients and t-statistics
+betas <- results[1, ]
+t_stats <- results[2, ]
+```
+
+#### 1.a) Give the mean and standard deviation of $\hat{\beta}$ across samples n and plot the histogram of the 10000 $\hat{\beta}$'s. Do these correspond to the null hypothesis $\beta$ = 0 and what you know about the distribution of estimated regression $\hat{\beta}$'s?
+
+```{r}
+mean_beta <- mean(betas)
+std_beta <- sd(betas)
+
+# Print mean and standard deviation of beta
+cat("Mean of Beta:", mean_beta, "\n")
+cat("Standard Deviation of Beta:", std_beta, "\n")
+```
+
+```{r}
+# Plot histogram of beta values
+hist(betas, breaks = 50, main = "Histogram of Beta Values",
+     xlab = "Beta", col = "gray", border = "black")
+
+# Add a vertical line at the mean beta
+abline(v = mean_beta, col = "indianred", lwd = 2)
+```
+
+```{r}
+# Statistics of beta
+stats <- mean_beta*sqrt(N)/std_beta
+p_vals <- 2*(1-pt(abs(stats),df=N-1))
+cat("The p-value of stats:",p_vals,'\n')
+
+# Interpret the results
+if (p_vals < 0.05) {
+  cat("Reject the null hypothesis.\n")
+} else {
+  cat("Fail to reject the null hypothesis.\n")
+}
+```
+
+We cannot reject the null hypothesis which means the distribution of beta is quite similar to normal distribution.
+
+#### 1.b) Give the mean and standard deviation of t across samples n and plot the histogram of the 10000 t-stats. Do the regression t-statistics look ok relative to the null hypothesis $\beta$ = 0 and what you know about the distribution of a t-statistic?
+
+```{r}
+mean_t <- mean(t_stats)
+std_t <- sd(t_stats)
+
+# Print mean and standard deviation
+cat("Mean of t-stats:", mean_t, "\n")
+cat("Standard Deviation of t-stats:", std_t, "\n")
+```
+
+```{r}
+# Plot histogram of beta values
+hist(t_stats, breaks = 50, main = "Histogram of t_stats Values",
+     xlab = "t_stats", col = "gray", border = "black")
+
+# Add a vertical line at the mean beta
+abline(v = mean_t, col = "indianred", lwd = 2)
+```
+
+In hypothesis testing, a t-statistic measures how many standard deviations the estimated coefficient is from zero. If the t-statistic is large and the p-value is small, you may reject the null hypothesis. From the histogram, we can see that only few samples are larger than 1.96, so we don't have enough evidence to reject the null hypothesis.
+
+The t-statistic follows a t-distribution. The histogram of t-statistics can provide insights into the distribution. It is nearly symmetric and bell-shaped, similar to a normal distribution, but has fat tail.
+
+### 2. Next, construct N price samples of length T based on each return using
+
+```{r}
+# Function to simulate price samples based on returns
+prices <- function(series) {
+  p1 <- cumsum(series$r1)
+  p2 <- cumsum(series$r2)
+  
+  data.frame(p1 = p1, p2 = p2)
+}
+
+# Function to perform regression on prices and save coefficients and t-statistics
+price_reg <- function(prices) {
+  model <- lm(p1 ~ p2, data = prices)
+  return(c(coef(model)[2], summary(model)$coefficients[2, 3]))
+}
+
+# Simulate N times
+price_results <- replicate(N, price_reg(prices(simulate(mu,sd,T))))
+
+# Extract slope coefficients and t-statistics
+price_betas <- price_results[1, ]
+price_t_stats <- price_results[2, ]
+```
+
+#### 2.a) Give the mean and standard deviation of $\hat{\beta}$ across samples n and plot the histogram of the 10000 $\hat{\beta}$'s. Do these correspond to the null hypothesis $\beta$ = 0 and what you know about the distribution of estimated regression $\hat{\beta}$'s?
+
+```{r}
+mean_price_beta <- mean(price_betas)
+std_price_beta <- sd(price_betas)
+
+# Print mean and standard deviation of beta
+cat("Mean of Price Beta:", mean_price_beta, "\n")
+cat("Standard Deviation of Price Beta:", std_price_beta, "\n")
+```
+
+```{r}
+# Plot histogram of beta values
+hist(price_betas, breaks = 50, main = "Histogram of Price Beta Values",
+     xlab = "Price Beta", col = "gray", border = "black")
+
+# Add a vertical line at the mean beta
+abline(v = mean_price_beta, col = "indianred", lwd = 2)
+```
+
+```{r}
+# Statistics of beta
+stats <- mean_price_beta*sqrt(N)/std_price_beta
+p_vals <- 2*(1-pt(abs(stats),df=N-1))
+cat("The p-value of stats:",p_vals,'\n')
+
+# Interpret the results
+if (p_vals < 0.05) {
+  cat("Reject the null hypothesis.\n")
+} else {
+  cat("Fail to reject the null hypothesis.\n")
+}
+```
+
+We reject the null hypothesis and the mean of beta is closer to 1. And the distribution of beta looks like asymmetry, which has negative skewness.
+
+#### 2.b) Give the mean and standard deviation of t across samples n and plot the histogram of the 10000 t-stats. Do the regression t-statistics look ok relative to the null hypothesis $\beta$ = 0 and what you know about the distribution of a t-statistic? What do you think is going on here here relative to the previous return case.
+
+```{r}
+mean_price_t <- mean(price_t_stats)
+std_price_t <- sd(price_t_stats)
+
+# Print mean and standard deviation
+cat("Mean of t-stats:", mean_price_t, "\n")
+cat("Standard Deviation of t-stats:", std_price_t, "\n")
+```
+
+```{r}
+# Plot histogram of beta values
+hist(price_t_stats, breaks = 50, main = "Histogram of Price t_stats Values",
+     xlab = "Price t_stats", col = "gray", border = "black")
+
+# Add a vertical line at the mean beta
+abline(v = mean_price_t, col = "indianred", lwd = 2)
+```
+
+From the histogram, we can see that most of the samples are larger than 2, which support the result of rejecting null hypothesis.
+
+The distribution of price t-statistics is also asymmetry, which has negative skewness.
+
+The relationship of previous return case and price case may be following aspects:
+
+1.  Prices are cumulative sums of returns
+2.  Although the correlation of the r1 and r2, p1 and p2 has close to 1 cor.

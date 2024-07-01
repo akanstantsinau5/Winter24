@@ -1,0 +1,178 @@
+---
+title: "Empirical Methods HW2"
+author: "Cohort1 Group 7"
+format: pdf
+---
+
+### Question 1
+
+Fama and French (2015) propose a five-factor model for expected stock returns. One of the factor is based on cross-sectional sorts on firm profitability. In particular, the factor portfolio is long firms with high profitability (high earnings divided by book equity; high ROE) and short firms with low profitability (low earnings divided by book equity; low ROE). This factor is called RMW-Robust Minus Weak.
+
+#### 1) Go to Ken French's Data Library (google it) and download the Fama/French 5 Factors (2x3) in CSV format. Denote the time series of value-weighted monthly factor returns for the RMW factor from 1963.07-2023.10 as "rmw." Plot the time-series, give the annualized mean and standard deviation of this return series.
+
+```{r}
+# Load the data
+df <- read.csv('F-F_Research_Data_5_Factors_2x3.csv', header = TRUE, skip = 3)
+colnames(df)[1] <- "Date"
+df <- suppressWarnings(as.data.frame(lapply(df, as.numeric)))
+df <- subset(df, df$Date>= 196307 & df$Date <= 202310)
+
+head(df)
+```
+
+```{r}
+# Plot the time series
+plot(df$RMW, type = 'l', col = 'darkgray',main = 'Time Series of RMW Factor Returns', 
+     xlab = 'Date', ylab = 'RMW')
+```
+
+```{r}
+# Calculate annualized mean and standard deviation
+annualized_mean <- mean(df$RMW) * 12  # Assuming monthly returns
+annualized_std <- sd(df$RMW) * sqrt(12)  # Assuming monthly returns
+
+cat("Annualized Mean:", annualized_mean, "\n")
+cat("Annualized Standard Deviation:", annualized_std, "\n")
+```
+#### 2) Plot the 1st to 60th order autocorrelations of rmw. Also plot the cumulative sum of these autocorrelations (that is, the 5th observation is the sum of the first 5 autocorrelations, the 11th observation is the sum of the first 11 autocorrelations, etc.). Describe these plots. In particular, do the plots hint at predictabilty of the factor returns? What are the salient patterns, if any?
+
+```{r}
+acf_rmw <- acf(df$RMW, lag.max = 61, plot = FALSE)$acf
+
+plot(acf_rmw[-1], type = "h", lwd = 4, col = "steelblue",
+     xlab = "Lag", ylab = "Autocorrelation", main = "Autocorrelation Plot (1-60 Lags)")
+abline(h = 0, col = "red", lty = 2)
+```
+
+```{r}
+cumulative_sum <- cumsum(acf_rmw[-1])
+plot(cumulative_sum, type = 'h', main = 'Cumulative Sum of Autocorrelations', 
+     xlab = 'Lag', ylab = 'Cumulative Sum')
+```
+
+Answer: \
+For the autocorrelation plot: \
+1. Most of the autocorrelation coefficients are within a small range around zero, with the first lag being the most positive.\
+2. The coefficients do not exhibit a consistent pattern of positive or negative correlation, which would have been indicated by a series of bars on one side of the zero line.\
+Therefore, the variability of the autocorrelation coefficients suggests that the RMW factor returns do not exhibit strong autocorrelation at various lags, thus indicating a low level of predictability from past returns.\
+
+For the cumulative sum of autocorrelations:\
+1. The plot shows a clear downward trend as the lags increase.\
+2. It starts with a positive sum but quickly turns negative, suggesting that any positive autocorrelation present at shorter lags is outweighed by negative autocorrelation as the lag increases.\
+3. The consistent downward trend in cumulative autocorrelations indicates a potential mean-reversion pattern, which suggests that periods of higher returns might be followed by lower returns and vice versa.\
+However, the overall sum stays relatively close to zero, implying that while there may be mean reversion, it is not strong enough to suggest a high level of predictability.\
+
+Salient Patterns:\
+The first lag in the autocorrelation plot shows a distinct positive autocorrelation, which is a common feature in many financial time series and often attributed to momentum or short-term continuation of returns.\
+The cumulative sum plot's clear downward trend after the initial few lags suggests that any predictability from autocorrelation in RMW factor returns may diminish quickly with time.\
+These plots provide some evidence of patterns in autocorrelations, with a slight hint towards mean reversion in the longer term. However, the lack of strong, consistent autocorrelation patterns across all lags, along with the cumulative sum not straying far from zero, indicates that the RMW factor returns do not exhibit strong predictability based on past returns. \
+
+#### 3) Perform a Ljung-Box test that the first 6 autocorrelations jointly are zero (see Lecture 3). Write out the form of the test and report the p-value. What do you conclude from this test?
+
+```{r}
+library(tidyverse)
+
+ljung_box_test <- Box.test(acf_rmw[2:61], lag = 6, type = "Ljung-Box")
+
+cat("Ljung-Box Test Statistic:", ljung_box_test$statistic, "\n")
+cat("P-value:", ljung_box_test$p.value, "\n")
+
+# Judge whether or not to reject the original hypothesis
+if (ljung_box_test$p.value < 0.05) {
+  cat("Reject the null hypothesis. There is evidence that the first 6 autocorrelations are not jointly zero.\n")
+} else {
+  cat("Fail to reject the null hypothesis. There is no significant evidence that the first 6 autocorrelations are not jointly zero.\n")
+}
+```
+
+Answer: This result suggests that there is strong statistical evidence that the first six autocorrelations of the RMW factor returns are not all jointly zero. In other words, there appears to be some autocorrelation in the RMW factor returns at the first six lags, which could indicate some level of predictability in the time series over short intervals. 
+
+#### 4) Based on your observations in (2) and (3), propose a parsimonious forecasting model for rmw. That is, for the prediction model $rmw_{t+1} = \beta'{x_t} + \epsilon_{t+1}$ where the first variable in xt is a 1 for the intercept in the regression. Choose the remaining variables in $X_t$, it could be only one more variable or a longer K x 1 vector. While this analysis is in-sample, I do want you to argue for your variables by attaching a "story" to your model that makes it more ex ante believable. (PS: This question is purposefully a little vague. There is not a single correct answer here, just grades of more to less reasonable as in the real world).
+
+Answer:\
+The proposed model is \
+$rmw_{t+1} = 0.24671+0.15961 \times rmw_{t} + \epsilon_{t+1}$\
+
+The story behind this model can be based on the behavioral economics principle of investor sentiment and momentum trading. Investors may react to information with a delay or follow trends established by past returns, causing the returns to persist for short periods. The positive coefficient for RMW_Lag suggests that when firms show high profitability compared to their book equity (high RMW), they tend to continue to do so in the following period. This can be attributed to the persistence of business conditions that affect firm profitability.\
+
+Moreover, the statistical significance of RMW_Lag indicates that past profitability is indeed informative about future profitability, which could be due to the slow diffusion of information among investors or the gradual adjustment of stock prices to reflect firms' intrinsic values.\
+
+```{r}
+df$RMW_Lag <- lag(df$RMW,1)
+model <- lm(RMW ~ RMW_Lag, data = df)
+summary(model)
+```
+
+#### 5) Estimate the proposed model. Report Robust (White) standard errors for $\hat{\beta}$ , as wel as the regular OLS standard errors.
+
+```{r}
+library(sandwich)
+library(lmtest)
+# Calculate the standard error of conventional OLS
+ols_se <- sqrt(diag(vcov(model)))
+
+# Computing robust (White) standard error
+robust_se <- sqrt(diag(vcovHC(model, type = "HC1")))
+
+cat("Regular OLS Standard Errors:\n", ols_se, "\n\n")
+cat("Robust (White) Standard Errors:\n", robust_se, "\n\n")
+
+```
+
+\newpage
+
+## Question 2
+
+Go to the Bureau of Economic Analysis and download the quarterly series for real, per capita GDP. In particular, go to: https://apps.bea.gov/iTable/?reqid=19&step=2&isuri=1&categories=survey Go to Section 7 - Supplemental Tables and click on Table 7.1. Click the "Modify" icon to download "All quarters" Chained (2012) dollars refers to the real data (as opposed to the nominal data in "current dollars") Create log GDP growth as:
+$g_{t+1} = ln \frac{GDP_{t+1}}{GDP_t}$
+
+#### 1) Plot the log GDP growth time series. Describe the series. Possible words you may want to use are words like volatile, persistent, Normally distributed, fat tails, skewness, cyclical, etc.
+
+```{r}
+gdpdata <- read.csv('Table.csv', skip = 3)
+gdpdata <- gdpdata[13:nrow(gdpdata), ]
+gdpValues <- gdpdata[1, 3:ncol(gdpdata)]
+gdpValues <- as.integer(as.character(gdpValues))
+
+# Calculate the values
+log_values <- log(gdpValues / lag(gdpValues))
+log_values <- log_values[!is.na(log_values)]
+
+# plot
+barplot(log_values, main = "Logarithm of GDP Growth", 
+        xlab = "Quarter", ylab = "Log", col = "steelblue",border = "gray")
+```
+
+Answer:The series displays a fair amount of volatility, with the bars showing quite a bit of variation in height from one quarter to the next. This indicates fluctuations in GDP growth rates from quarter to quarter. There appears to be a cyclical pattern, with periods of growth followed by downturns, indicating a sign of business cycles. 
+
+#### 2) Plot the autocorrelations for this process at lags 1 through 20 (that is, 1 quarter to five years) as a barplot with the lag on the horizontal axis and autocorrelation on the vertical axis. This is the "sample autocorrelation function".
+
+```{r}
+acf_values <- acf(log_values, lag.max = 20, plot = FALSE)$acf
+
+plot(acf_values[-1], type = "h", lwd = 4, col = "steelblue",
+     xlab = "Lag", ylab = "Autocorrelation", main = "Autocorrelation Plot (1-20 Lags)")
+abline(h = 0, col = "red", lty = 2)
+
+```
+
+#### 3)  Plot the same autocorrelation function but now using data only up to 2019Q4 (that is, remove the pandemic period). How do things change relative to the previous plot? Did GDP predictability patterns fundamentally change do you think?
+
+```{r}
+barplot(log_values[1:292], main = "Logarithm of GDP Growth", 
+        xlab = "Quarter", ylab = "Log", col = "steelblue",border = "gray")
+```
+
+```{r}
+acf_values <- acf(log_values[1:292], lag.max = 20, plot = FALSE)$acf
+
+plot(acf_values[-1], type = "h", lwd = 4, col = "steelblue",
+     xlab = "Lag", ylab = "Autocorrelation", main = "Autocorrelation Plot (1-20 Lags)")
+abline(h = 0, col = "red", lty = 2)
+```
+
+Answer: \
+In the pre-pandemic plot, the first lag shows a higher positive autocorrelation compared to the full dataset. This suggests that GDP growth from one quarter to the next was more predictable before the pandemic.\
+The autocorrelations in the pre-pandemic plot appear to be more significant, particularly at the first lag, indicating stronger serial correlation in GDP growth during that period.\
+The pre-pandemic plot shows less fluctuation in the autocorrelation values across the lags. This could imply that the GDP growth became more erratic during the pandemic.
+The comparison of the two plots indicates that GDP predictability patterns did change with the onset of the pandemic. The increased volatility and decreased predictability observed in the full dataset are consistent with the economic disruptions caused by the pandemic.
